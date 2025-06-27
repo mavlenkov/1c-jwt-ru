@@ -1,55 +1,54 @@
-1C HMAC & JWT
+HMAC & JWT для 1С
 =====
 
-This is a pure 1C implementation of RFC 2104 <https://www.ietf.org/rfc/rfc2104.txt> and RFC 7519 <https://tools.ietf.org/html/rfc7519>
+Реализация стандартов RFC 2104 https://www.ietf.org/rfc/rfc2104.txt и RFC 7519 https://tools.ietf.org/html/rfc7519 для платформы 1С.
 
-Limitations
+Ограничения
 -----------
 
-This implementation works only on 1C:Enterprise platform version 8.3.10.2168 or above.\
-The platform you may download here: <https://1c-dn.com/user/updates/1c_enterprise_platform_training_version/>\
-For JWT supported algorithm HS256 only.\
-HMAC function supports algorithms: MD5, SHA1, SHA256
+Реализация работает начиная с платформы 1С:Предприятие версии 8.3.10.2168 и выше.
+Платформу можно скачать здесь: https://online.1c.ru/catalog/programs/program/28765768/
+Для JWT поддерживается только алгоритм HS256.
+Функция ХАКС поддерживает алгоритмы: MD5, SHA1, SHA256
 
-PS: Since version 8.3.21 you may use AccessToken object to create JWT.\
+Примечание: Начиная с версии 8.3.21 можно использовать объект ТокенДоступа для создания JWT.
 https://wonderland.v8.1c.ru/blog/autentifikatsiya-s-pomoshchyu-jwt-tokenov/
 
-Installing
+Установка
 ----------
 
-Download modules Cryptography.bsl and JWT.bsl.
-Put modules into the 1C application.
+Скачайте модули Криптография.bsl и JWT.bsl
+Добавьте модули в конфигурацию 1С
 
-
-Usage
+Использование
 -----
 
 ```bsl
 	
-	// HMAC
-	SecretKey = "key";
-	StringToSign = "The quick brown fox jumps over the lazy dog";
-	Signature = Cryptography.HMAC(
-		GetBinaryDataFromString(SecretKey),
-		GetBinaryDataFromString(StringToSign),
-		HashFunction.SHA256);
+	// ХАКС
+	СекретныйКлюч = "Ключ";
+	СтрокаДляПодписи = "Съешь ещё этих мягких французских булок, да выпей же чаю.";
+	Подпись = Криптография.ХАКС(
+		ПолучитьДвоичныеДанныеИзСтроки(СекретныйКлюч),
+		ПолучитьДвоичныеДанныеИзСтроки(СтрокаДляПодписи),
+		ХешФункция.SHA256);
 
 	// JWT
-	SecretKey = "secret";
-	Payload = New Structure;
-	Payload.Insert("sub", "1234567890");
-	Payload.Insert("name", "John Doe");
-	Payload.Insert("admin", True);
+	СекретныйКлюч = "Секрет";
+	ПолезнаяНагрузка = Новый Структура;
+	ПолезнаяНагрузка.Вставить("sub", "1234567890");
+	ПолезнаяНагрузка.Вставить("name", "Василий Пупкин");
+	ПолезнаяНагрузка.Вставить("admin", Истина);
 	
-	Token = JWT.Encode(SecretKey, Payload);
+	Токен = JWT.Зашифровать(СекретныйКлюч, ПолезнаяНагрузка);
 	
-	DecodedPayload = JWT.Decode(Token, SecretKey);
+	РасшифрованнаяПолезнаяНагрузка = JWT.Расшифровать(СекретныйКлюч, ПолезнаяНагрузка);
 	
 ```
 
-Credits and License
+Авторские права и лицензия
 -------------------
 
-Author: Vasily Pintov <vasily@pintov.ru>
+Автор: Василий Пинтов vasily@pintov.ru
 
-License: MIT
+Лицензия: MIT

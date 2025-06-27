@@ -1,150 +1,152 @@
 
-Function Encode(Val SecretKey, Val Payload = Undefined, Val ExtraHeaders = Undefined) Export
+Функция Зашифровать(Знач СекретныйКлюч, Знач ПолезнаяНагрузка = Неопределено, Знач ДопЗаголовки = Неопределено) Экспорт
 	
-	If Payload = Undefined Then
-		Payload = New Structure;
-	EndIf;
+	Если ПолезнаяНагрузка = Неопределено Тогда
+		ПолезнаяНагрузка = Новый Структура;
+	КонецЕсли;
 	
-	header = New Structure;
-	header.Insert("typ", "JWT");
-	header.Insert("alg", "HS256");
-	If ExtraHeaders <> Undefined Then
-		For Each eh In ExtraHeaders Do
-			header.Insert(eh.Key, eh.Value);
-		EndDo;	
-	EndIf;
+	Заголовок = Новый Структура;
+	Заголовок.Вставить("typ", "JWT");
+	Заголовок.Вставить("alg", "HS256");
+	Если ДопЗаголовки <> Неопределено Тогда
+		Для Каждого ДопЗаголовок Из ДопЗаголовки Цикл
+			Заголовок.Вставить(ДопЗаголовок.Ключ, ДопЗаголовок.Значение);
+		КонецЦикла;
+	КонецЕсли;
 	
-	headerBytes = GetBinaryDataFromString(ComposeJSON(header));
-	payloadBytes = GetBinaryDataFromString(ComposeJSON(Payload));
+	БайтыЗаголовка = ПолучитьДвоичныеДанныеИзСтроки(СформироватьJSON(Заголовок));
+	БайтыПолезнойНагрузки = ПолучитьДвоичныеДанныеИзСтроки(СформироватьJSON(ПолезнаяНагрузка));
 	
-	segments = New Array;
-	segments.Add(Base64UrlEncode(headerBytes));
-	segments.Add(Base64UrlEncode(payloadBytes));
+	Сегменты = Новый Массив;
+	Сегменты.Добавить(ЗашифроватьBase64Url(БайтыЗаголовка));
+	Сегменты.Добавить(ЗашифроватьBase64Url(БайтыПолезнойНагрузки));
 	
-	stringToSign = StrConcat(segments, ".");
+	СтрокаВПодпись = СтрСоединить(Сегменты, ".");
 	
-	signature = Cryptography.HMAC(
-		GetBinaryDataFromString(SecretKey),
-		GetBinaryDataFromString(stringToSign),
-		HashFunction.SHA256);
+	Подпись = Cryptography.HMAC(
+		ПолучитьДвоичныеДанныеИзСтроки(СекретныйКлюч),
+		ПолучитьДвоичныеДанныеИзСтроки(СтрокаВПодпись),
+		ХешФункция.SHA256);
 		
-	segments.Add(Base64UrlEncode(signature));
+	Сегменты.Добавить(ЗашифроватьBase64Url(Подпись));
 	
-	res = StrConcat(segments, ".");
+	Результат = СтрСоединить(Сегменты, ".");
 	
-	Return res;
+	Возврат Результат;
 
-EndFunction
+КонецФункции
 
-Function Decode(Val Token, Val SecretKey, Val Verify = True) Export
+Функция Расшифровать(Знач Токен, Знач СекретныйКлюч, Знач Проверка = Истина) Экспорт
 
-	parts = StrSplit(Token, ".");
-	If parts.Count() <> 3 Then
-		Raise "JWT.Decode: Token must consist from 3 delimited by dot parts";
-	EndIf;
+	Части = СтрРазделить(Токен, ".");
+	Если Части.Количество() <> 3 Тогда
+		ВызватьИсключение "JWT.Расшифровать: Токен должен состоять из трёх частей, разделённых точкой";
+	КонецЕсли;
 	
-	header = parts[0];
-	payload = parts[1];
-	crypto = Base64UrlDecode(parts[2]);
+	Заголовок = Части[0];
+	ПолезнаяНагрузка = Части[1];
+	Крипто = РасшифроватьBase64Url(Части[2]);
 	
-	headerJson = GetStringFromBinaryData(Base64UrlDecode(header));
-	payloadJson = GetStringFromBinaryData(Base64UrlDecode(payload));
+	ЗаголовокJSON = ПолучитьСтрокуИзДвоичныхДанных()РасшифроватьBase64Url(Заголовок));
+	ПолезнаяНагрузкаJSON = ПолучитьСтрокуИзДвоичныхДанных(РасшифроватьBase64Url(ПолезнаяНагрузка));
 	
-	headerData = ParseJSON(headerJson);
-	payloadData = ParseJSON(payloadJson);
+	ДанныеЗаголовка = РазобратьJSON(ЗаголовокJSON);
+	ДанныеПолезнойНагрузки = РазобратьJSON(ПолезнаяНагрузкаJSON);
 	
-	If Verify Then
-		If headerData.Property("alg") Then
-			If headerData.alg <> "HS256" Then
-				Raise "JWT.Decode: unsopported algorithm: " + headerData.alg;
-			EndIf;
+	Если Проверка Тогда
+		Если ДанныеЗаголовка.Property("alg") Тогда
+			Если ДанныеЗаголовка.alg <> "HS256" Тогда
+				ВызватьИсключение "JWT.Расшифровать: неподдерживаемый алгоритм: " + ДанныеЗаголовка.alg;
+			КонецЕсли;
 		Else
-			Raise "JWT.Decode: header doesn't contain field 'alg'";
-		EndIf;
+			ВызватьИсключение "JWT.Расшифровать: в заголовке отсутствует поле 'alg'";
+		КонецЕсли;
 
-		signature = Cryptography.HMAC(
-			GetBinaryDataFromString(SecretKey),
-			GetBinaryDataFromString(header + "." + payload),
-			HashFunction.SHA256);
+		Подпись = Криптография.ХАКС(
+			ПолучитьДвоичныеДанныеИзСтроки(СекретныйКлюч),
+			ПолучитьДвоичныеДанныеИзСтроки(Заголовок + "." + ПолезнаяНагрузка),
+			ХешФункция.SHA256);
 			
-		If Base64String(crypto) <> Base64String(signature) Then
-			Raise "JWT.Decode: Invalid signature";
-		EndIf;
+		Если Base64Строка(Крипто) <> Base64Строка(Подпись) Тогда
+			ВызватьИсключение "JWT.Расшифровать: Некорректная подпись";
+		КонецЕсли;
 		
-	EndIf;
+	КонецЕсли;
 	
-	Return payloadData;
+	Возврат ДанныеПолезнойНагрузки;
 
-EndFunction
+КонецФункции
 
-Function Base64UrlEncode(Val input)
+Функция ЗашифроватьBase64Url(Знач Ввод)
 
-	output = Base64String(input);
-	output = StrSplit(output, "=")[0]; // Remove any trailing '='s
-	output = StrReplace(output, Chars.CR + Chars.LF, "");
-	output = StrReplace(output, "+", "-"); // 62nd char of encoding
-	output = StrReplace(output, "/", "_"); // 63rd char of encoding
-	Return output;
+	Вывод = Base64Строка(Ввод);
+	Вывод = СтрРазделить(Вывод, "=")[0]; // Убираем оконечные '='
+	Вывод = СтрЗаменить(Вывод, Символы.ВК + Символы.ПС, "");
+	Вывод = СтрЗаменить(Вывод, "+", "-"); // 62-й символ кодировки
+	Вывод = СтрЗаменить(Вывод, "/", "_"); // 63-й символ кодировки
 
-EndFunction
+	Возврат Вывод;
 
-Function Base64UrlDecode(Val input)
+КонецФункции
+
+Фукнция РасшифроватьBase64Url(Знач Ввод)
 	
-	res = input;
-	res = StrReplace(input, "-", "+"); // 62nd char of encoding
-	res = StrReplace(res, "_", "/"); // 63rd char of encoding
-	m = StrLen(res) % 4;
-	If m = 1 Then
-		Raise "JWT.Base64UrlDecode: Illegal base64url string: " + input;
-	ElsIf m = 2 Then
-		res = res + "=="; // Two pad chars
-	ElsIf m = 3 Then
-		res = res + "="; // One pad char
-	EndIf;
-	return Base64Value(res);
+	Результат = Ввод;
+	Результат = СтрЗаменить(Ввод, "-", "+"); // 62-й символ кодировки
+	Результат = СтрЗаменить(Результат, "_", "/"); // 63-й символ кодировки
+	Проверка4 = СтрДлина(Результат) % 4;
+	Если Проверка4 = 1 Тогда
+		ВызватьИсключение "JWT.РасшифроватьBase64Url: Некорректная строка BASE64Url: " + Ввод;
+	ИначеЕсли Проверка4 = 2 Тогда
+		Результат = Результат + "=="; // Два символа выравнивания
+	ИначеЕсли Проверка4 = 3 Тогда
+		Результат = Результат + "="; // Один символ выравнивания
+	КонецЕсли;
+
+	Возврат Base64Значение(Результат);
 	
-EndFunction
+КонецФункции
 
-Function ComposeJSON(Obj, LineBreak = Undefined) Export
+Функция СформироватьJSON(Объект, ПереносСтрок = Неопределено) Экспорт
 
-	If Not ValueIsFilled(Obj) Then
-		Return "";
-	EndIf;
+	Если Не ЗначениеЗаполнено(Объект) Тогда
+		Возврат "";
+	КонецЕсли;
 	
-	If LineBreak = Undefined Then
-		LineBreak = JSONLineBreak.None;
-	EndIf;
+	Если ПереводСтроки = Неопределено Тогда
+		ПереносСтрок = ПереносСтрокJSON.Нет;
+	КонецЕсли;
 	
-	JSONWriter = New JSONWriter;
-	Settings = New JSONWriterSettings(LineBreak);
-	JSONWriter.SetString(Settings);
-	WriteJSON(JSONWriter, Obj);
-	Return JSONWriter.Close();
+	ЗаписьJSON = Новый ЗаписьJSON;
+	Параметры = Новый ПараметрыЗаписиJSON(ПереносСтрок);
+	ЗаписьJSON.УстановитьСтроку(Параметры);
+	ЗаписатьJSON(ЗаписьJSON, Объект);
+	Возврат ЗаписьJSON.Закрыть();
 
-EndFunction
+КонецФункции
 
-Function ParseJSON(Json) Export
+Функция РазобратьJSON(JSON) Экспорт
 
-	If Not ValueIsFilled(Json) Then
-		Return Undefined;
-	EndIf;
+	Если Не ЗначениеЗаполнено(JSON) Тогда
+		Возврат Неопределено;
+	КонецЕсли;
 	
-	JSONReader = New JSONReader;
-	JSONReader.SetString(Json);
-	Return ReadJSON(JSONReader, False);
+	ЧтениеJSON = Новый ЧтениеJSON;
+	ЧтениеJSON.УстановитьСтроку(JSON);
+	Возврат ПрочитатьJSON(ЧтениеJSON, Ложь);
 
-EndFunction
+КонецФункции
 
-Procedure Test() Export
+Процедура Тест() Экспорт
 	
-	SecretKey = "secret";
-	Payload = New Structure;
-	Payload.Insert("sub", "1234567890");
-	Payload.Insert("name", "John Doe");
-	Payload.Insert("admin", True);
+	СекретныйКлюч = "Секрет";
+	ПолезнаяНагрузка = Новый Структура;
+	ПолезнаяНагрузка.Вставить("sub", "1234567890");
+	ПолезнаяНагрузка.Вставить("name", "Василий Пупкин");
+	ПолезнаяНагрузка.Вставить("admin", Истина);
 	
-	Token = Encode(SecretKey, Payload);
+	Токен = Зашифровать(СекретныйКлюч, ПолезнаяНагрузка);
 	
-	DecodedPayload = Decode(Token, SecretKey);
+	РасшифрованнаяПолезнаяНагрузка = Расшифровать(Токен, СекретныйКлюч);
 
-EndProcedure
+КонецПроцедуры
